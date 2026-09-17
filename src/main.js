@@ -17,7 +17,6 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
   responseContent.textContent = '';
 
   try {
-    // Determine the callback URL based on current host
     const callbackUrl = `${window.location.origin}/api/ask`;
 
     const response = await fetch('/api/ask', {
@@ -42,9 +41,9 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
       return;
     }
 
-    // Poll the backend every 3 seconds to retrieve the completed agent answer!
+    // Poll the backend every 3 seconds to retrieve the completed agent answer
     let attempts = 0;
-    const maxAttempts = 25; // Try for up to 75 seconds
+    const maxAttempts = 30; // Try for up to 90 seconds
 
     const pollInterval = setInterval(async () => {
       attempts++;
@@ -73,4 +72,3 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
     statusDiv.textContent = `❌ Network Error: ${err.message}`;
   }
 });
-          
