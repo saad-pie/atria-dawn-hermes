@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js & Python
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -20,29 +20,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Clone Hermes Agent Repo & Cache Dependencies
+      - name: Cache Node Modules, Pip, and Hermes Environment
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
             node_modules
             ~/.cache/pip
-            hermes-core
-          key: ${{ runner.os }}-atria-hermes-cache-${{ hashFiles('**/package-lock.json') }}
+            ~/.hermes
+          key: ${{ runner.os }}-atria-hermes-full-cache-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-atria-hermes-cache-
+            ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Setup & Install Core Packages
+      - name: Install Node Dependencies & Official Hermes CLI
         run: |
           if [ -f "package.json" ]; then
             npm install
           fi
-          # Clone Hermes core if not already restored from cache
-          if [ ! -d "hermes-core" ]; then
-            git clone https://github.com/NousResearch/Hermes-Agent.git hermes-core
+          
+          # Install Official Hermes Agent CLI and pre-cache its virtualenv/dependencies
+          if [ ! -d "$HOME/.hermes" ]; then
+            curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
           fi
-          pip install openai requests tenacity
-          echo "✨ Environment, Hermes Agent core, and caches initialized successfully!"
+          
+          echo "✨ Environment, Hermes CLI, and caches fully initialized successfully!"
           
