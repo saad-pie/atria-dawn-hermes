@@ -25,32 +25,32 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Python Dependencies
-        run: pip install openai requests
+      - name: Restore/Ensure Dependencies & Hermes Core
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            hermes-core
+          key: ${{ runner.os }}-atria-hermes-cache-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-atria-hermes-cache-
 
-      - name: Execute Atria-Dawn Hermes Core
+      - name: Install Runtime Requirements & Hermes Core Deps
+        run: |
+          pip install openai requests tenacity
+          if [ -f "hermes-core/requirements.txt" ]; then
+            pip install -r hermes-core/requirements.txt || true
+          fi
+
+      - name: Run Hermes Agent
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
-          USER_PROMPT: ${{ inputs.prompt }}
+          OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
+          OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
+          HERMES_MODEL: "Atria-Dawn-Preview"
         run: |
-          python3 -c "
-          import os
-          from openai import OpenAI
-          
-          client = OpenAI(
-              api_key=os.environ['ATRIA_DAWN_API_KEY'],
-              base_url='https://api.atria-asi.ai/v1'
-          )
-          
-          response = client.chat.completions.create(
-              model='Atria-Dawn-Preview',
-              messages=[
-                  {'role': 'system', 'content': 'You are the Atria-Dawn Hermes Agent 4000 core runner.'},
-                  {'role': 'user', 'content': os.environ['USER_PROMPT']}
-              ],
-              temperature=0.7
-          )
-          print('--- ATRIA DAWN RESPONSE START ---')
-          print(response.choices[0].message.content)
-          print('--- ATRIA DAWN RESPONSE END ---')
-          "
+          python3 hermes-core/src/hermes_agent.py \
+            --prompt "${{ inputs.prompt }}" \
+            --model "$HERMES_MODEL" \
+            --user-id "${{ inputs.user_id }}"
+            
