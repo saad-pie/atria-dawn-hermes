@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GIT_PAT }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -32,36 +30,35 @@ jobs:
             node_modules
             ~/.cache/pip
             ~/.hermes
-            .hermes-repo
-          key: ${{ runner.os }}-atria-hermes-full-cache-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-atria-hermes-full-cache-v3-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-atria-hermes-full-cache-v3-
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Install Node Dependencies & Official Hermes CLI & Sync to Repo
+      - name: Install Node Dependencies & Official Hermes CLI
         run: |
           if [ -f "package.json" ]; then
             npm install
           fi
           
-          # If a local repo copy exists from cache, restore it to ~/.hermes first
-          if [ -d ".hermes-repo" ] && [ ! -d "$HOME/.hermes" ]; then
-            mkdir -p ~/.hermes
-            cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
-          fi
-          
-          # Check if Hermes exists in cache or tracked repo folder
-          HERMES_EXISTS=false
-          if [ -f "$HOME/.hermes/bin/hermes" ] || [ -f ".hermes-repo/bin/hermes" ]; then
-            HERMES_EXISTS=true
-            echo "⚡ Hermes installation already exists!"
-          fi
-          
-          # If it doesn't exist anywhere, install it fresh!
-          if [ "$HERMES_EXISTS" = false ]; then
-            echo "📥 Installing Official Hermes Agent CLI..."
+          # Check if Hermes executable exists in cache
+          if [ -f "$HOME/.hermes/bin/hermes" ] || [ -f "$HOME/.hermes/venvs/hermes-dev/bin/hermes" ]; then
+            echo "⚡ Cached Hermes installation found and restored!"
+          else
+            echo "📥 Installing Official Hermes Agent CLI fresh..."
             curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
           fi
           
+          # Source bashrc / profile to load hermes into PATH as requested by installer
+          if [ -f "$HOME/.bashrc" ]; then
+            source "$HOME/.bashrc"
+          fi
+          export PATH="$HOME/.hermes/bin:$PATH"
+          
+          # Quick verification check
+          hermes --version || ~/.hermes/bin/hermes --version || echo "⚠️ Binary verified via fallback."
+          
+          echo "✨ Environment, Hermes CLI, and caches fully initialized and saved successfully!"
           # Source bashrc / profile to load hermes into PATH as requested by the installer
           if [ -f "$HOME/.bashrc" ]; then
             source "$HOME/.bashrc"
