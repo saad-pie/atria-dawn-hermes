@@ -35,26 +35,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Set up Hermes PATH & Atria-Dawn Config
+      - name: Set up Hermes PATH
         run: |
           echo "$HOME/.hermes/venvs/hermes-dev/bin" >> $GITHUB_PATH
           export PATH="$HOME/.local/bin:$HOME/.hermes/venvs/hermes-dev/bin:$PATH"
-          
-          mkdir -p ~/.hermes
-          cat << EOF > ~/.hermes/.env
-          OPENAI_API_KEY="${{ secrets.ATRIA_DAWN_API_KEY }}"
-          OPENAI_BASE_URL="https://api.atria-asi.ai/v1"
-          HERMES_DEFAULT_MODEL="Atria-Dawn-Preview"
-          EOF
 
       - name: Run Hermes Execution Engine
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
+          HERMES_DEFAULT_MODEL: "Atria-Dawn-Preview"
         run: |
           export PATH="$HOME/.hermes/venvs/hermes-dev/bin:$PATH"
           
-          # Using the proper non-interactive hermes execution run command
+          # Execute Hermes directly with Atria-Dawn environment variables wired in
           hermes run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
           
