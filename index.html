@@ -5,23 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Atria-Dawn Hermes Agent 4000 ⚡</title>
     <style>
-      body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-      .chat-container { width: 100%; max-width: 600px; background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 1rem; }
-      h2 { margin: 0 0 0.5rem 0; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; }
+      body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
+      .chat-container { width: 100%; max-width: 650px; background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 1rem; }
+      h2 { margin: 0 0 0.2rem 0; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; }
       textarea { width: 100%; height: 100px; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #475569; background: #0f172a; color: #f8fafc; resize: none; font-size: 1rem; box-sizing: border-box; }
       button { background: #0284c7; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
       button:hover { background: #0ea5e9; }
       #status { font-size: 0.9rem; color: #94a3b8; min-height: 1.5rem; }
+      .response-box { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; margin-top: 0.5rem; display: none; }
+      .response-box h3 { margin: 0 0 0.5rem 0; color: #38bdf8; font-size: 1rem; }
+      #responseContent { white-space: pre-wrap; color: #e2e8f0; font-family: inherit; line-height: 1.5; margin: 0; }
     </style>
   </head>
   <body>
     <div class="chat-container">
       <h2>✨ Atria-Dawn Hermes Agent 4000</h2>
       <p style="color: #94a3b8; margin: 0;">Send tasks straight to your custom GitHub Actions & Atria-Dawn backend!</p>
-      <textarea id="promptInput" placeholder="Enter your prompt or task here..."></textarea>
+      
+      <textarea id="promptInput" placeholder="Enter your prompt or task here, my friend! 💖"></textarea>
       <button id="sendBtn">Dispatch to GitHub Actions 🚀</button>
+      
       <div id="status"></div>
+
+      <div id="responseBox" class="response-box">
+        <h3>🤖 Hermes Agent Response:</h3>
+        <pre id="responseContent"></pre>
+      </div>
     </div>
+    
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
