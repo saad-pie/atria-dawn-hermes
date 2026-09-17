@@ -43,6 +43,12 @@ jobs:
             npm install
           fi
           
+          # If a local repo copy exists from cache, restore it to ~/.hermes first
+          if [ -d ".hermes-repo" ] && [ ! -d "$HOME/.hermes" ]; then
+            mkdir -p ~/.hermes
+            cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
+          fi
+          
           # Check if Hermes exists in cache or tracked repo folder
           HERMES_EXISTS=false
           if [ -f "$HOME/.hermes/bin/hermes" ] || [ -f ".hermes-repo/bin/hermes" ]; then
@@ -56,11 +62,11 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
           fi
           
-          # If a local repo copy exists from cache, restore it to ~/.hermes
-          if [ -d ".hermes-repo" ] && [ ! -d "$HOME/.hermes" ]; then
-            mkdir -p ~/.hermes
-            cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
+          # Source bashrc / profile to load hermes into PATH as requested by the installer
+          if [ -f "$HOME/.bashrc" ]; then
+            source "$HOME/.bashrc"
           fi
+          export PATH="$HOME/.hermes/bin:$PATH"
           
           # Mirror ~/.hermes into tracked repo folder for git commit
           mkdir -p .hermes-repo
@@ -80,7 +86,7 @@ jobs:
             git commit -m "📦 Auto-commit: Initialize and cache Hermes CLI binaries [skip ci]"
             git push origin main
             echo "🎉 Successfully pushed Hermes environment to your GitHub repository!"
-          }
+          fi
           
           echo "✨ Environment, Hermes CLI, and caches fully initialized successfully!"
           
