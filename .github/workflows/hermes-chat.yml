@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Run Autonomous Hermes Agent & Fallback Handler
+      - name: Run Autonomous Hermes Agent Handler
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
@@ -81,8 +81,7 @@ jobs:
           answer = None
           success = False
 
-          # Attempt 1: Run via Atria-Dawn endpoint
-          print(f'🤖 Initializing Hermes Agent via Atria-Dawn endpoint ({os.environ[\"HERMES_DEFAULT_MODEL\"]})...')
+          print(f'🤖 Initializing Hermes Agent exclusively via Atria-Dawn ({os.environ[\"HERMES_DEFAULT_MODEL\"]})...')
           try:
               client = OpenAI(
                   api_key=os.environ['ATRIA_DAWN_API_KEY'],
@@ -105,41 +104,13 @@ jobs:
               success = True
               print('✅ Atria-Dawn execution successful!')
           except Exception as e:
-              print(f'⚠️ Atria-Dawn endpoint failed: {e}')
-              print('🔄 Falling back to keyless Opencode Zen gateway...')
-
-          # Attempt 2: Fallback to Opencode Zen if Atria fails
-          if not success:
-              try:
-                  zen_client = OpenAI(
-                      api_key='not-needed',
-                      base_url='https://opencode.zen/v1' # Keyless fallback gateway
-                  )
-                  res = zen_client.chat.completions.create(
-                      model='zen-default',
-                      messages=[
-                          {
-                              'role': 'system',
-                              'content': 'You are Hermes Agent 4000 acting via Opencode Zen fallback infrastructure. Be exceptionally warm, helpful, and brilliant.'
-                          },
-                          {
-                              'role': 'user',
-                              'content': prompt
-                          }
-                      ]
-                  )
-                  answer = res.choices[0].message.content
-                  success = True
-                  print('✅ Opencode Zen fallback execution successful!')
-              except Exception as zen_err:
-                  print(f'❌ Opencode Zen fallback also failed: {zen_err}')
-                  answer = f'⚠️ Error: Both Atria-Dawn and Opencode Zen endpoints encountered issues processing your request: {zen_err}'
+              print(f'❌ Atria-Dawn endpoint failed: {e}')
+              answer = f'⚠️ Error: Atria-Dawn endpoint failed to process request: {e}'
 
           print('\n✨ === HERMES AGENT FINAL RESPONSE === ✨')
           print(answer)
           print('=======================================\n')
 
-          # Dispatch webhook back to Vercel backend if callback URL is provided
           if callback:
               print(f'📤 Dispatching response payload back to callback URL: {callback}')
               payload = json.dumps({
