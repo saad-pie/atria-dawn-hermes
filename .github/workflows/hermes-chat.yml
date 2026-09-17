@@ -1,0 +1,56 @@
+name: ⚡ Hermes Live Chat 4000
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Prompt/Task for Atria-Dawn Hermes Agent'
+        required: true
+        type: string
+      user_id:
+        description: 'User or Session ID'
+        required: false
+        default: 'anonymous'
+        type: string
+
+jobs:
+  run-hermes-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: pip install openai requests
+
+      - name: Execute Atria-Dawn Hermes Core
+        env:
+          ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
+          USER_PROMPT: ${{ inputs.prompt }}
+        run: |
+          python3 -c "
+          import os
+          from openai import OpenAI
+          
+          client = OpenAI(
+              api_key=os.environ['ATRIA_DAWN_API_KEY'],
+              base_url='https://api.atria-asi.ai/v1'
+          )
+          
+          response = client.chat.completions.create(
+              model='Atria-Dawn-Preview',
+              messages=[
+                  {'role': 'system', 'content': 'You are the Atria-Dawn Hermes Agent 4000 core runner.'},
+                  {'role': 'user', 'content': os.environ['USER_PROMPT']}
+              ],
+              temperature=0.7
+          )
+          print('--- ATRIA DAWN RESPONSE START ---')
+          print(response.choices[0].message.content)
+          print('--- ATRIA DAWN RESPONSE END ---')
+          "
