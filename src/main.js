@@ -6,18 +6,18 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
 
   if (!prompt) {
     statusDiv.style.color = '#f87171';
-    statusDiv.textContent = '⚠️ Please enter a prompt first, my friend! Let us make magic happen! ✨';
+    statusDiv.textContent = '⚠️ Please enter a prompt first!';
     return;
   }
 
-  // Reset and show loading state
   statusDiv.style.color = '#38bdf8';
-  statusDiv.textContent = '🚀 Dispatches flying to GitHub Actions & Atria-Dawn... Sit tight! ☕';
+  statusDiv.textContent = '🚀 Dispatching task to GitHub Actions & Atria-Dawn...';
   responseBox.style.display = 'none';
   responseContent.textContent = '';
 
   try {
-    const callbackUrl = `${window.location.origin}/api/ask`;
+    // FIX: Include ?type=callback query parameter for the webhook route
+    const callbackUrl = `${window.location.origin}/api/ask?type=callback`;
 
     const response = await fetch('/api/ask', {
       method: 'POST',
@@ -25,14 +25,21 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
       body: JSON.stringify({ prompt, callbackUrl })
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error(`Server returned HTML instead of JSON (${response.status}). Check Vercel logs.`);
+    }
 
     if (!response.ok) {
       throw new Error(data.error || 'Failed to trigger workflow.');
     }
 
     statusDiv.style.color = '#facc15';
-    statusDiv.textContent = '⏳ Workflow triggered! Waiting for Atria-Dawn Hermes Agent to reply... 🤖✨';
+    statusDiv.textContent = '⏳ Workflow triggered! Waiting for Hermes Agent to reply... 🤖✨';
 
     const runId = data.runId;
     if (!runId) {
@@ -41,9 +48,8 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
       return;
     }
 
-    // Poll the backend every 3 seconds to retrieve the completed agent answer
     let attempts = 0;
-    const maxAttempts = 30; // Try for up to 90 seconds
+    const maxAttempts = 40; // Poll for up to 120 seconds
 
     const pollInterval = setInterval(async () => {
       attempts++;
@@ -54,13 +60,13 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
         if (checkData.status === 'completed' && checkData.response) {
           clearInterval(pollInterval);
           statusDiv.style.color = '#4ade80';
-          statusDiv.textContent = '🎉 Response received from Hermes Agent successfully! 💖';
+          statusDiv.textContent = '🎉 Response received successfully! 💖';
           responseContent.textContent = checkData.response;
           responseBox.style.display = 'block';
         } else if (attempts >= maxAttempts) {
           clearInterval(pollInterval);
           statusDiv.style.color = '#f87171';
-          statusDiv.textContent = '⏰ Polling timed out, but your workflow is still running on GitHub! Check your actions tab.';
+          statusDiv.textContent = '⏰ Polling timed out. Check your GitHub Actions tab for the complete result.';
         }
       } catch (pollErr) {
         console.error('Polling error:', pollErr);
