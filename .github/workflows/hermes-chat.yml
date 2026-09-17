@@ -39,7 +39,7 @@ jobs:
             ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Run Atria-Dawn Hermes Chat Engine
+      - name: Run Atria-Dawn Hermes Agent Engine
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
@@ -48,8 +48,20 @@ jobs:
           PROMPT_TEXT: "${{ inputs.prompt }}"
           USER_ID: "${{ inputs.user_id }}"
         run: |
-          echo "🚀 Executing Atria-Dawn Hermes Agent 4000 for user: $USER_ID"
-          python3 -c "
+          echo "🔍 Locating Hermes venv python..."
+          
+          # Find the exact python binary inside the hermes-agent venv where packages are installed
+          PYTHON_BIN=""
+          if [ -f "$HOME/.hermes/hermes-agent/venv/bin/python" ]; then
+            PYTHON_BIN="$HOME/.hermes/hermes-agent/venv/bin/python"
+          elif [ -f "$HOME/.hermes/venvs/hermes-dev/bin/python" ]; then
+            PYTHON_BIN="$HOME/.hermes/venvs/hermes-dev/bin/python"
+          else
+            PYTHON_BIN="python3"
+          fi
+          
+          echo "🚀 Executing script using Python interpreter: $PYTHON_BIN"
+          "$PYTHON_BIN" -c "
           import os
           from openai import OpenAI
           
@@ -58,7 +70,7 @@ jobs:
               base_url=os.environ['OPENAI_BASE_URL']
           )
           
-          print(f'🤖 Sending prompt to model: {os.environ[\"HERMES_DEFAULT_MODEL\"]}')
+          print(f'🤖 Sending prompt via Atria-Dawn endpoint: {os.environ[\"HERMES_DEFAULT_MODEL\"]}')
           res = client.chat.completions.create(
               model=os.environ['HERMES_DEFAULT_MODEL'],
               messages=[
@@ -75,6 +87,6 @@ jobs:
           
           print('\n✨ === HERMES AGENT RESPONSE === ✨')
           print(res.choices[0].message.content)
-          print('===================================\n')
-          "
+          print('===================================\n'
+          )"
           
