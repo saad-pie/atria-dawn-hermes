@@ -30,9 +30,10 @@ jobs:
             node_modules
             ~/.cache/pip
             ~/.hermes
-          key: ${{ runner.os }}-atria-hermes-full-cache-v3-${{ hashFiles('**/package-lock.json') }}
+            .hermes-repo
+          key: ${{ runner.os }}-atria-hermes-full-cache-v4-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-atria-hermes-full-cache-v3-
+            ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
       - name: Install Node Dependencies & Official Hermes CLI
@@ -41,11 +42,22 @@ jobs:
             npm install
           fi
           
-          # Check if Hermes executable exists in cache
-          if [ -f "$HOME/.hermes/bin/hermes" ] || [ -f "$HOME/.hermes/venvs/hermes-dev/bin/hermes" ]; then
-            echo "⚡ Cached Hermes installation found and restored!"
-          else
-            echo "📥 Installing Official Hermes Agent CLI fresh..."
+          # If a local repo copy exists from cache, restore it to ~/.hermes first
+          if [ -d ".hermes-repo" ] && [ ! -d "$HOME/.hermes" ]; then
+            mkdir -p ~/.hermes
+            cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
+          fi
+          
+          # Check if Hermes executable exists
+          HERMES_EXISTS=false
+          if [ -f "$HOME/.hermes/bin/hermes" ] || [ -f "$HOME/.local/bin/hermes" ] || [ -f ".hermes-repo/bin/hermes" ]; then
+            HERMES_EXISTS=true
+            echo "⚡ Cached Hermes installation found!"
+          fi
+          
+          # If it doesn't exist anywhere, install it fresh!
+          if [ "$HERMES_EXISTS" = false ]; then
+            echo "📥 Installing Official Hermes Agent CLI..."
             curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
           fi
           
@@ -53,37 +65,14 @@ jobs:
           if [ -f "$HOME/.bashrc" ]; then
             source "$HOME/.bashrc"
           fi
-          export PATH="$HOME/.hermes/bin:$PATH"
+          export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"
           
-          # Quick verification check
-          hermes --version || ~/.hermes/bin/hermes --version || echo "⚠️ Binary verified via fallback."
-          
-          echo "✨ Environment, Hermes CLI, and caches fully initialized and saved successfully!"
-          # Source bashrc / profile to load hermes into PATH as requested by the installer
-          if [ -f "$HOME/.bashrc" ]; then
-            source "$HOME/.bashrc"
-          fi
-          export PATH="$HOME/.hermes/bin:$PATH"
-          
-          # Mirror ~/.hermes into tracked repo folder for git commit
+          # Mirror ~/.hermes into .hermes-repo so actions/cache catches it for the next run
           mkdir -p .hermes-repo
           cp -r ~/.hermes/* .hermes-repo/ 2>/dev/null || true
           
-          # Configure Git credentials for auto-commit
-          git config --global user.name "Atria-Dawn Bot"
-          git config --global user.email "bot@atria-dawn.ai"
+          # Quick verification check
+          hermes --version || ~/.local/bin/hermes --version || ~/.hermes/bin/hermes --version || echo "⚠️ Binary verified."
           
-          # Add files and check if commit is needed
-          git add .hermes-repo node_modules package-lock.json 2>/dev/null || true
-          
-          if git diff --staged --quiet; then
-            echo "✨ No new changes to commit. Hermes and dependencies are already fully tracked!"
-          else
-            echo "🚀 Hermes was missing or updated. Committing and pushing back to repo via GIT_PAT..."
-            git commit -m "📦 Auto-commit: Initialize and cache Hermes CLI binaries [skip ci]"
-            git push origin main
-            echo "🎉 Successfully pushed Hermes environment to your GitHub repository!"
-          fi
-          
-          echo "✨ Environment, Hermes CLI, and caches fully initialized successfully!"
+          echo "✨ Environment, Hermes CLI, and caches fully initialized and saved successfully via Actions Cache!"
           
