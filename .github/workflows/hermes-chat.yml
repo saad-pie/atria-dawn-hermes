@@ -31,6 +31,7 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.hermes
+            .hermes-repo
           key: ${{ runner.os }}-atria-hermes-full-cache-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-atria-hermes-full-cache-
@@ -42,7 +43,14 @@ jobs:
           OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
           HERMES_DEFAULT_MODEL: "Atria-Dawn-Preview"
         run: |
-          echo "🔍 Searching for hermes binary in cached directories..."
+          echo "🔍 Setting up Hermes environment from repo/cache sync..."
+          
+          # If ~/.hermes doesn't exist yet, restore it instantly from our tracked repo folder!
+          if [ ! -d "$HOME/.hermes" ] && [ -d ".hermes-repo" ]; then
+            echo "📦 Restoring Hermes binaries directly from tracked .hermes-repo folder..."
+            mkdir -p ~/.hermes
+            cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
+          fi
           
           # Discover where hermes executable lives
           HERMES_BIN=""
@@ -61,7 +69,7 @@ jobs:
             echo "🚀 Found Hermes binary at: $HERMES_BIN"
             "$HERMES_BIN" run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
           else
-            echo "⚠️ Binary not found in cache. Running fallback quick-install..."
+            echo "⚠️ Binary not found in cache or repo. Running fallback quick-install..."
             curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
             
             # Find and run again
