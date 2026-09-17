@@ -29,11 +29,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ~/.npm
+            node_modules
             ~/.cache/pip
             ~/.hermes
             .hermes-repo
-          key: ${{ runner.os }}-atria-hermes-full-cache-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-atria-hermes-full-cache-v4-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
       - name: Locate & Run Hermes Execution Engine
@@ -43,41 +46,45 @@ jobs:
           OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
           HERMES_DEFAULT_MODEL: "Atria-Dawn-Preview"
         run: |
-          echo "🔍 Setting up Hermes environment from repo/cache sync..."
+          echo "🔍 Setting up Hermes environment from cache..."
           
-          # If ~/.hermes doesn't exist yet, restore it instantly from our tracked repo folder!
+          # If ~/.hermes doesn't exist yet, restore it instantly from .hermes-repo if available
           if [ ! -d "$HOME/.hermes" ] && [ -d ".hermes-repo" ]; then
-            echo "📦 Restoring Hermes binaries directly from tracked .hermes-repo folder..."
+            echo "📦 Restoring Hermes binaries from tracked .hermes-repo folder..."
             mkdir -p ~/.hermes
             cp -r .hermes-repo/* ~/.hermes/ 2>/dev/null || true
           fi
           
-          # Discover where hermes executable lives
+          # Discover where hermes executable lives across all possible installer paths
           HERMES_BIN=""
           if [ -f "$HOME/.hermes/bin/hermes" ]; then
             HERMES_BIN="$HOME/.hermes/bin/hermes"
+          elif [ -f "$HOME/.local/bin/hermes" ]; then
+            HERMES_BIN="$HOME/.local/bin/hermes"
           elif [ -f "$HOME/.hermes/venvs/hermes-dev/bin/hermes" ]; then
             HERMES_BIN="$HOME/.hermes/venvs/hermes-dev/bin/hermes"
           elif command -v hermes &> /dev/null; then
             HERMES_BIN="hermes"
           else
-            # Deep search inside ~/.hermes
-            HERMES_BIN=$(find ~/.hermes -name "hermes" -type f -executable 2>/dev/null | head -n 1)
+            # Deep search inside ~/.hermes or ~/.local
+            HERMES_BIN=$(find ~/.hermes ~/.local -name "hermes" -type f -executable 2>/dev/null | head -n 1)
           fi
+          
+          export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"
           
           if [ -n "$HERMES_BIN" ] && [ -x "$HERMES_BIN" ]; then
             echo "🚀 Found Hermes binary at: $HERMES_BIN"
             "$HERMES_BIN" run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
           else
-            echo "⚠️ Binary not found in cache or repo. Running fallback quick-install..."
+            echo "⚠️ Binary not found in cache. Running quick-install fallback..."
             curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
             
             # Find and run again
-            HERMES_BIN=$(find ~/.hermes -name "hermes" -type f -executable 2>/dev/null | head -n 1)
+            HERMES_BIN=$(find ~/.hermes ~/.local -name "hermes" -type f -executable 2>/dev/null | head -n 1)
             if [ -n "$HERMES_BIN" ]; then
               "$HERMES_BIN" run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
             else
-              # Ultimate robust python execution fallback if wrapper script fails
+              # Ultimate robust python execution fallback if binary resolution fails
               python3 -c "
               import os
               from openai import OpenAI
