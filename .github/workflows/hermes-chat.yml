@@ -53,6 +53,7 @@ jobs:
           PROMPT_TEXT: "${{ inputs.prompt }}"
           USER_ID: "${{ inputs.user_id }}"
           CALLBACK_URL: "${{ inputs.callback_url }}"
+          GITHUB_RUN_ID: "${{ github.run_id }}"
         run: |
           echo "🔍 Locating Hermes environment..."
           
@@ -75,6 +76,7 @@ jobs:
           prompt = os.environ['PROMPT_TEXT']
           callback = os.environ.get('CALLBACK_URL', '').strip()
           user_id = os.environ.get('USER_ID', 'anonymous')
+          run_id = os.environ.get('GITHUB_RUN_ID', '')
 
           answer = None
           success = False
@@ -143,6 +145,7 @@ jobs:
               payload = json.dumps({
                   'success': success,
                   'user_id': user_id,
+                  'run_id': run_id,
                   'response': answer
               }).encode('utf-8')
               
