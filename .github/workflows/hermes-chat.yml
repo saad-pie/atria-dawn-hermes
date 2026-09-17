@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Run Atria-Dawn Hermes Agent Engine & Send Callback
+      - name: Run Autonomous Hermes Agent & Fallback Handler
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
@@ -54,9 +54,8 @@ jobs:
           USER_ID: "${{ inputs.user_id }}"
           CALLBACK_URL: "${{ inputs.callback_url }}"
         run: |
-          echo "🔍 Locating Hermes venv python..."
+          echo "🔍 Locating Hermes environment..."
           
-          # Find the exact python binary inside the hermes-agent venv where packages are installed
           PYTHON_BIN=""
           if [ -f "$HOME/.hermes/hermes-agent/venv/bin/python" ]; then
             PYTHON_BIN="$HOME/.hermes/hermes-agent/venv/bin/python"
@@ -64,47 +63,86 @@ jobs:
             PYTHON_BIN="$HOME/.hermes/venvs/hermes-dev/bin/python"
           else
             PYTHON_BIN="python3"
-          fi
+          }
           
-          echo "🚀 Executing script using Python interpreter: $PYTHON_BIN"
+          echo "🚀 Executing Hermes Autonomous Agent Execution Script: $PYTHON_BIN"
           "$PYTHON_BIN" -c "
           import os
           import json
           import urllib.request
           from openai import OpenAI
-          
-          client = OpenAI(
-              api_key=os.environ['ATRIA_DAWN_API_KEY'],
-              base_url=os.environ['OPENAI_BASE_URL']
-          )
-          
-          print(f'🤖 Sending prompt via Atria-Dawn endpoint: {os.environ[\"HERMES_DEFAULT_MODEL\"]}')
-          res = client.chat.completions.create(
-              model=os.environ['HERMES_DEFAULT_MODEL'],
-              messages=[
-                  {
-                      'role': 'system', 
-                      'content': 'You are Hermes Agent 4000, powered by Atria-Dawn core logic and Nous Research agent architecture. Be exceptionally warm, helpful, and brilliant.'
-                  },
-                  {
-                      'role': 'user', 
-                      'content': os.environ['PROMPT_TEXT']
-                  }
-              ]
-          )
-          
-          answer = res.choices[0].message.content
-          print('\n✨ === HERMES AGENT RESPONSE === ✨')
+
+          prompt = os.environ['PROMPT_TEXT']
+          callback = os.environ.get('CALLBACK_URL', '').strip()
+          user_id = os.environ.get('USER_ID', 'anonymous')
+
+          answer = None
+          success = False
+
+          # Attempt 1: Run via Atria-Dawn endpoint
+          print(f'🤖 Initializing Hermes Agent via Atria-Dawn endpoint ({os.environ[\"HERMES_DEFAULT_MODEL\"]})...')
+          try:
+              client = OpenAI(
+                  api_key=os.environ['ATRIA_DAWN_API_KEY'],
+                  base_url=os.environ['OPENAI_BASE_URL']
+              )
+              res = client.chat.completions.create(
+                  model=os.environ['HERMES_DEFAULT_MODEL'],
+                  messages=[
+                      {
+                          'role': 'system', 
+                          'content': 'You are Hermes Agent 4000, powered by Atria-Dawn core logic and Nous Research agent architecture. Be exceptionally warm, helpful, and brilliant.'
+                      },
+                      {
+                          'role': 'user', 
+                          'content': prompt
+                      }
+                  ]
+              )
+              answer = res.choices[0].message.content
+              success = True
+              print('✅ Atria-Dawn execution successful!')
+          except Exception as e:
+              print(f'⚠️ Atria-Dawn endpoint failed: {e}')
+              print('🔄 Falling back to keyless Opencode Zen gateway...')
+
+          # Attempt 2: Fallback to Opencode Zen if Atria fails
+          if not success:
+              try:
+                  zen_client = OpenAI(
+                      api_key='not-needed',
+                      base_url='https://opencode.zen/v1' # Keyless fallback gateway
+                  )
+                  res = zen_client.chat.completions.create(
+                      model='zen-default',
+                      messages=[
+                          {
+                              'role': 'system',
+                              'content': 'You are Hermes Agent 4000 acting via Opencode Zen fallback infrastructure. Be exceptionally warm, helpful, and brilliant.'
+                          },
+                          {
+                              'role': 'user',
+                              'content': prompt
+                          }
+                      ]
+                  )
+                  answer = res.choices[0].message.content
+                  success = True
+                  print('✅ Opencode Zen fallback execution successful!')
+              except Exception as zen_err:
+                  print(f'❌ Opencode Zen fallback also failed: {zen_err}')
+                  answer = f'⚠️ Error: Both Atria-Dawn and Opencode Zen endpoints encountered issues processing your request: {zen_err}'
+
+          print('\n✨ === HERMES AGENT FINAL RESPONSE === ✨')
           print(answer)
-          print('===================================\n')
-          
-          # Automatically send the answer back to your Vercel backend if a callback URL was provided!
-          callback = os.environ.get('CALLBACK_URL')
-          if callback and callback.strip():
+          print('=======================================\n')
+
+          # Dispatch webhook back to Vercel backend if callback URL is provided
+          if callback:
               print(f'📤 Dispatching response payload back to callback URL: {callback}')
               payload = json.dumps({
-                  'success': True,
-                  'user_id': os.environ.get('USER_ID', 'anonymous'),
+                  'success': success,
+                  'user_id': user_id,
                   'response': answer
               }).encode('utf-8')
               
@@ -117,8 +155,8 @@ jobs:
               try:
                   with urllib.request.urlopen(req) as resp:
                       print(f'✅ Callback delivered successfully with status: {resp.status}')
-              except Exception as e:
-                  print(f'⚠️ Warning: Callback request failed: {e}')
+              except Exception as cb_err:
+                  print(f'⚠️ Warning: Callback request failed: {cb_err}')
           else:
               print('ℹ️ No callback URL provided. Skipping webhook dispatch.')
           "
