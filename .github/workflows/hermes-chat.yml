@@ -1,4 +1,4 @@
-name: ⚡ Hermes Live Chat 4000
+Name: ⚡ Hermes Live Chat 4000
 
 on:
   workflow_dispatch:
@@ -63,7 +63,7 @@ jobs:
             PYTHON_BIN="$HOME/.hermes/venvs/hermes-dev/bin/python"
           else
             PYTHON_BIN="python3"
-          }
+          fi
           
           echo "🚀 Executing Hermes Autonomous Agent Execution Script: $PYTHON_BIN"
           "$PYTHON_BIN" -c "
