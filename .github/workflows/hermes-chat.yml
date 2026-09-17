@@ -1,4 +1,4 @@
-Name: ⚡ Hermes Live Chat 4000
+name: ⚡ Hermes Live Chat 4000
 
 on:
   workflow_dispatch:
