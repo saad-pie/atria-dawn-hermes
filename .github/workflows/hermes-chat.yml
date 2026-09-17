@@ -35,20 +35,57 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Set up Hermes PATH
-        run: |
-          echo "$HOME/.hermes/venvs/hermes-dev/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.local/bin:$HOME/.hermes/venvs/hermes-dev/bin:$PATH"
-
-      - name: Run Hermes Execution Engine
+      - name: Locate & Run Hermes Execution Engine
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
           HERMES_DEFAULT_MODEL: "Atria-Dawn-Preview"
         run: |
-          export PATH="$HOME/.hermes/venvs/hermes-dev/bin:$PATH"
+          echo "🔍 Searching for hermes binary in cached directories..."
           
-          # Execute Hermes directly with Atria-Dawn environment variables wired in
-          hermes run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
+          # Discover where hermes executable lives
+          HERMES_BIN=""
+          if [ -f "$HOME/.hermes/bin/hermes" ]; then
+            HERMES_BIN="$HOME/.hermes/bin/hermes"
+          elif [ -f "$HOME/.hermes/venvs/hermes-dev/bin/hermes" ]; then
+            HERMES_BIN="$HOME/.hermes/venvs/hermes-dev/bin/hermes"
+          elif command -v hermes &> /dev/null; then
+            HERMES_BIN="hermes"
+          else
+            # Deep search inside ~/.hermes
+            HERMES_BIN=$(find ~/.hermes -name "hermes" -type f -executable 2>/dev/null | head -n 1)
+          fi
+          
+          if [ -n "$HERMES_BIN" ] && [ -x "$HERMES_BIN" ]; then
+            echo "🚀 Found Hermes binary at: $HERMES_BIN"
+            "$HERMES_BIN" run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
+          else
+            echo "⚠️ Binary not found in cache. Running fallback quick-install..."
+            curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+            
+            # Find and run again
+            HERMES_BIN=$(find ~/.hermes -name "hermes" -type f -executable 2>/dev/null | head -n 1)
+            if [ -n "$HERMES_BIN" ]; then
+              "$HERMES_BIN" run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
+            else
+              # Ultimate robust python execution fallback if wrapper script fails
+              python3 -c "
+              import os
+              from openai import OpenAI
+              client = OpenAI(
+                  api_key=os.environ['ATRIA_DAWN_API_KEY'],
+                  base_url=os.environ['OPENAI_BASE_URL']
+              )
+              res = client.chat.completions.create(
+                  model=os.environ['HERMES_DEFAULT_MODEL'],
+                  messages=[
+                      {'role': 'system', 'content': 'You are Hermes Agent 4000, powered by Nous Research core logic. Be exceptionally warm, helpful, and kind.'},
+                      {'role': 'user', 'content': '${{ inputs.prompt }}'}
+                  ]
+              )
+              print(res.choices[0].message.content)
+              "
+            fi
+          fi
           
