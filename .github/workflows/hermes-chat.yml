@@ -12,6 +12,11 @@ on:
         required: false
         default: 'anonymous'
         type: string
+      callback_url:
+        description: 'Optional Vercel webhook URL to report results back'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   run-hermes-agent:
@@ -39,7 +44,7 @@ jobs:
             ${{ runner.os }}-atria-hermes-full-cache-v4-
             ${{ runner.os }}-atria-hermes-full-cache-
 
-      - name: Run Atria-Dawn Hermes Agent Engine
+      - name: Run Atria-Dawn Hermes Agent Engine & Send Callback
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
@@ -47,6 +52,7 @@ jobs:
           HERMES_DEFAULT_MODEL: "Atria-Dawn-Preview"
           PROMPT_TEXT: "${{ inputs.prompt }}"
           USER_ID: "${{ inputs.user_id }}"
+          CALLBACK_URL: "${{ inputs.callback_url }}"
         run: |
           echo "🔍 Locating Hermes venv python..."
           
@@ -63,6 +69,8 @@ jobs:
           echo "🚀 Executing script using Python interpreter: $PYTHON_BIN"
           "$PYTHON_BIN" -c "
           import os
+          import json
+          import urllib.request
           from openai import OpenAI
           
           client = OpenAI(
@@ -85,8 +93,33 @@ jobs:
               ]
           )
           
+          answer = res.choices[0].message.content
           print('\n✨ === HERMES AGENT RESPONSE === ✨')
-          print(res.choices[0].message.content)
-          print('===================================\n'
-          )"
+          print(answer)
+          print('===================================\n')
+          
+          # Automatically send the answer back to your Vercel backend if a callback URL was provided!
+          callback = os.environ.get('CALLBACK_URL')
+          if callback and callback.strip():
+              print(f'📤 Dispatching response payload back to callback URL: {callback}')
+              payload = json.dumps({
+                  'success': True,
+                  'user_id': os.environ.get('USER_ID', 'anonymous'),
+                  'response': answer
+              }).encode('utf-8')
+              
+              req = urllib.request.Request(
+                  callback,
+                  data=payload,
+                  headers={'Content-Type': 'application/json'},
+                  method='POST'
+              )
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      print(f'✅ Callback delivered successfully with status: {resp.status}')
+              except Exception as e:
+                  print(f'⚠️ Warning: Callback request failed: {e}')
+          else:
+              print('ℹ️ No callback URL provided. Skipping webhook dispatch.')
+          "
           
