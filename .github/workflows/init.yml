@@ -17,18 +17,32 @@ jobs:
         with:
           node-version: 20
 
-      - name: Cache Node Modules & Pip
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Clone Hermes Agent Repo & Cache Dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
             node_modules
-          key: ${{ runner.os }}-atria-cache-${{ hashFiles('**/package-lock.json') }}
+            ~/.cache/pip
+            hermes-core
+          key: ${{ runner.os }}-atria-hermes-cache-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-atria-cache-
+            ${{ runner.os }}-atria-hermes-cache-
 
-      - name: Install Dependencies
+      - name: Setup & Install Core Packages
         run: |
-          npm install
-          echo "✨ Environment initialized and cached successfully!"
+          if [ -f "package.json" ]; then
+            npm install
+          fi
+          # Clone Hermes core if not already restored from cache
+          if [ ! -d "hermes-core" ]; then
+            git clone https://github.com/NousResearch/Hermes-Agent.git hermes-core
+          fi
+          pip install openai requests tenacity
+          echo "✨ Environment, Hermes Agent core, and caches initialized successfully!"
           
