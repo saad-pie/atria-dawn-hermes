@@ -23,34 +23,36 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Restore/Ensure Dependencies & Hermes Core
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            hermes-core
-          key: ${{ runner.os }}-atria-hermes-cache-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-atria-hermes-cache-
-
-      - name: Install Runtime Requirements & Hermes Core Deps
+      - name: Install Official Hermes Agent CLI
         run: |
-          pip install openai requests tenacity
-          if [ -f "hermes-core/requirements.txt" ]; then
-            pip install -r hermes-core/requirements.txt || true
-          fi
+          curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+          echo "$HOME/.hermes/venvs/hermes-dev/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/bin:$PATH"
 
-      - name: Run Hermes Agent
+      - name: Configure Atria-Dawn Provider for Hermes Agent
+        env:
+          ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
+        run: |
+          mkdir -p ~/.hermes
+          # Configure Hermes environment so it routes its autonomous agent backend to Atria-Dawn
+          cat << EOF > ~/.hermes/.env
+          OPENAI_API_KEY="${ATRIA_DAWN_API_KEY}"
+          OPENAI_BASE_URL="https://api.atria-asi.ai/v1"
+          HERMES_DEFAULT_MODEL="Atria-Dawn-Preview"
+          EOF
+          
+          # Set model config preference
+          hermes config set model custom/Atria-Dawn-Preview || true
+
+      - name: Run Full Hermes Autonomous Agent Loop
         env:
           ATRIA_DAWN_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ATRIA_DAWN_API_KEY }}
           OPENAI_BASE_URL: "https://api.atria-asi.ai/v1"
-          HERMES_MODEL: "Atria-Dawn-Preview"
         run: |
-          python3 hermes-core/src/hermes_agent.py \
-            --prompt "${{ inputs.prompt }}" \
-            --model "$HERMES_MODEL" \
-            --user-id "${{ inputs.user_id }}"
-            
+          # Use Hermes agent execution command / non-interactive agent run flag 
+          # to kick off its memory and reasoning loop instead of a dead chat flag
+          hermes agent run --prompt "${{ inputs.prompt }}" --user "${{ inputs.user_id }}"
+          
