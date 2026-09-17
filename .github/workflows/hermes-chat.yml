@@ -79,9 +79,7 @@ jobs:
           run_id = os.environ.get('GITHUB_RUN_ID', '')
 
           answer = None
-          success = False
 
-          print(f'🤖 Initializing Hermes Agent exclusively via Atria-Dawn ({os.environ[\"HERMES_DEFAULT_MODEL\"]})...')
           try:
               client = OpenAI(
                   api_key=os.environ['ATRIA_DAWN_API_KEY'],
@@ -101,21 +99,15 @@ jobs:
                   ]
               )
               answer = res.choices[0].message.content
-              success = True
-              print('✅ Atria-Dawn execution successful!')
           except Exception as e:
-              print(f'❌ Atria-Dawn endpoint failed: {e}')
-              answer = f'⚠️ Error: Atria-Dawn endpoint failed to process request: {e}'
+              answer = f'Error: Atria-Dawn endpoint failed to process request: {e}'
 
-          print('\n✨ === HERMES AGENT FINAL RESPONSE === ✨')
+          # Print only raw answer to stdout for GitHub Action log clarity
           print(answer)
-          print('=======================================\n')
 
+          # Dispatch purely the response back to Vercel
           if callback:
-              print(f'📤 Dispatching response payload back to callback URL: {callback}')
               payload = json.dumps({
-                  'success': success,
-                  'user_id': user_id,
                   'run_id': run_id,
                   'response': answer
               }).encode('utf-8')
@@ -128,10 +120,8 @@ jobs:
               )
               try:
                   with urllib.request.urlopen(req) as resp:
-                      print(f'✅ Callback delivered successfully with status: {resp.status}')
+                      pass
               except Exception as cb_err:
-                  print(f'⚠️ Warning: Callback request failed: {cb_err}')
-          else:
-              print('ℹ️ No callback URL provided. Skipping webhook dispatch.')
+                  print(f'Warning: Callback request failed: {cb_err}')
           "
           
