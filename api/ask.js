@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   const { prompt } = req.body;
   // Updated to use GIT_PAT since GitHub reserves the GITHUB_ prefix! 🔑
   const GIT_PAT = process.env.GIT_PAT;
-  const owner = 'your-github-username';
+  const owner = 'saad-pie';
   const repo = 'atria-dawn-hermes';
 
   try {
